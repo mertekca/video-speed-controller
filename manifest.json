@@ -1,0 +1,17 @@
+{
+  "manifest_version": 3,
+  "name": "Video Speed Controller",
+  "version": "1.0",
+  "description": "Automatically set video speed with adjustable control.",
+  "permissions": ["scripting", "activeTab"],
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "128": "icon.png"
+    },
+    "default_title": "Video Speed Controller"
+  },
+  "background": {
+    "service_worker": "background.js"
+  }
+}
