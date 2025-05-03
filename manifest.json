@@ -3,7 +3,11 @@
   "name": "Video Speed Controller",
   "version": "1.0",
   "description": "Automatically set video speed with adjustable control.",
-  "permissions": ["scripting", "activeTab"],
+  "permissions": [
+    "storage",
+    "activeTab",
+    "scripting"
+  ],
   "action": {
     "default_popup": "popup.html",
     "default_icon": {
