@@ -12,7 +12,7 @@ const maxLog = Math.log10(1600);
 
 function linearToLogValue(linearValue) {
   const logValue = minLog + (linearValue / 100) * (maxLog - minLog);
-  return Math.pow(10, logValue);
+  return Math.round(Math.pow(10, logValue) / 5) * 5;
 }
 
 function logValueToLinear(logValue) {
@@ -23,17 +23,32 @@ function logValueToLinear(logValue) {
 function updateLabelAndSave(percent) {
   const rounded = Math.round(percent / 5) * 5;
   label.textContent = `${rounded}%`;
-  localStorage.setItem('videoSpeedPercent', rounded);
-  chrome.runtime.sendMessage({ type: 'setSpeed', speed: rounded / 100 });
   highlightPreset(rounded);
+  applySpeedToTab(rounded / 100);
+  getCurrentTabId().then(tabId => {
+    chrome.storage.local.set({ ['speed_' + tabId]: rounded });
+  });
+}
+
+function applySpeedToTab(speed) {
+  chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+    if (tabs[0]?.id) {
+      chrome.scripting.executeScript({
+        target: { tabId: tabs[0].id },
+        func: (s) => {
+          const applySpeed = () => {
+            document.querySelectorAll('video').forEach(v => v.playbackRate = s);
+          };
+          applySpeed();
+          setInterval(applySpeed, 1000);
+        },
+        args: [speed]
+      });
+    }
+  });
 }
 
 slider.addEventListener('input', () => {
-  const percent = linearToLogValue(parseFloat(slider.value));
-  updateLabelAndSave(percent);
-});
-
-slider.addEventListener('change', () => {
   const percent = linearToLogValue(parseFloat(slider.value));
   updateLabelAndSave(percent);
 });
@@ -87,11 +102,8 @@ function showError(msg) {
 }
 
 function tryAddPreset() {
-  let val = parseInt(newPresetInput.value);
+  const val = Math.round(parseInt(newPresetInput.value) / 5) * 5;
   if (isNaN(val)) return;
-
-  val = Math.round(val / 5) * 5;
-
   if (val < 10 || val > 1600) {
     showError('Value must be between 10 and 1600');
     return;
@@ -104,8 +116,15 @@ function tryAddPreset() {
     savePresets(presets);
     renderPresets();
   }
-
   newPresetInput.value = '';
+}
+
+function getCurrentTabId() {
+  return new Promise((resolve) => {
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      resolve(tabs[0]?.id || null);
+    });
+  });
 }
 
 addPresetBtn.addEventListener('click', tryAddPreset);
@@ -121,9 +140,13 @@ resetPresetsBtn.addEventListener('click', () => {
 });
 
 // Init
-const saved = localStorage.getItem('videoSpeedPercent');
-const start = saved ? parseInt(saved) : 300;
-slider.value = logValueToLinear(start);
-label.textContent = `${start}%`;
-highlightPreset(start);
 renderPresets();
+getCurrentTabId().then(tabId => {
+  chrome.storage.local.get(['speed_' + tabId], (data) => {
+    const saved = data['speed_' + tabId] ?? 100;
+    slider.value = logValueToLinear(saved);
+    label.textContent = `${saved}%`;
+    highlightPreset(saved);
+    applySpeedToTab(saved / 100);
+  });
+});
